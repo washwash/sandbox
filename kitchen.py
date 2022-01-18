@@ -149,6 +149,23 @@ class Recipe(Observer):
                 }
             )
 
+    def accept(self, visitor: 'Visitor'):
+        visitor.visit(self)
+
+
+class Visitor:
+
+    def visit(self, element: 'Visitable'):
+        pass
+
+
+class ChefVisitor(Visitor):
+
+    def visit(self, recipe: Recipe):
+        recipe.completion_state
+        print("ready to cook!")
+
+
 ## Client code
 # define abstract users products
 penne = Product("penne")
@@ -199,3 +216,7 @@ print(pasta_pesto_dish.completion_state)
 
 penne_shelf.add(Measurment(unit=MeasurmentUnit.GRAM, value=Decimal(800)))
 print(pasta_pesto_dish.completion_state)
+
+# cooking!
+chef = ChefVisitor()
+pasta_pesto_dish.accept(chef)
