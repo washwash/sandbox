@@ -83,34 +83,45 @@ class Shelf(Subject):
         return f'{self.product} ({self.left})'
 
     def remove(self, quantity: Measurment):
-        # do removing from shelf
-        # and then notify subscribers that amount was changed
-        print(f'{self} I am notifying!')
+        if self.left.value < quantity.value:
+            raise ValueError()
+
+        self.left.value -= quantity.value
+        self.notify()
+
+    def add(self, quantity: Measurment):
+        self.left.value += quantity.value
         self.notify()
 
 
 class Ingredient(Subject, Observer):
     shelf: Shelf
+    product: Product
     measurement: Measurment
 
     def __init__(self, shelf: Shelf, measurment: Measurment):
         super().__init__()
         self.shelf = shelf
+        self.product = shelf.product
         self.measurement = measurment
         self.subscribe([shelf, ])
-        
+ 
     def __str__(self):
         return f'{self.shelf} ({self.measurement})'
 
     def update(self, subject: Subject):
-        print(f'{self} just passing...')
         self.notify()
+
+    @property
+    def is_enough(self):
+        return self.shelf.left.value >= self.measurement.value
 
 
 class Recipe(Observer):
     ingredients: List[Ingredient]
     description: str
     name: str
+    completion_state: List[dict]
 
     def __init__(self, name, ingredients: List[Ingredient], description=None):
         super().__init__()
@@ -128,10 +139,15 @@ class Recipe(Observer):
         self.reload_state()
 
     def reload_state(self):
-        # check conditions to complete recipe
-        # go though ingredients and check amount on shelfs
-        print(f"{self} - I'm reloading")
-
+        self.completion_state = []
+        for i in self.ingredients:
+            self.completion_state.append(
+                {
+                    "status": 1 if i.is_enough else 0,
+                    "product_id": i.product.id,
+                    "product_name": i.product.name
+                }
+            )
 
 ## Client code
 # define abstract users products
@@ -175,7 +191,11 @@ ingredients = [
     )
 ]
 pasta_pesto_dish = Recipe("Pasta pesto shop", ingredients=ingredients)
+print(pasta_pesto_dish.completion_state)
 
-# do some modifications
 spaghetti_shelf.remove(Measurment(unit=MeasurmentUnit.GRAM, value=Decimal(100)))
-penne_shelf.remove(Measurment(unit=MeasurmentUnit.GRAM, value=Decimal(100)))
+penne_shelf.remove(Measurment(unit=MeasurmentUnit.GRAM, value=Decimal(800)))
+print(pasta_pesto_dish.completion_state)
+
+penne_shelf.add(Measurment(unit=MeasurmentUnit.GRAM, value=Decimal(800)))
+print(pasta_pesto_dish.completion_state)
