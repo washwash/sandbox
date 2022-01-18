@@ -165,6 +165,12 @@ class ChefVisitor(Visitor):
         recipe.completion_state
         print("ready to cook!")
 
+class ShoppingListVisitor(Visitor):
+
+    def visit(self, recipe: Recipe):
+        recipe.completion_state
+        print("ready for shopping!")
+
 
 ## Client code
 # define abstract users products
@@ -220,3 +226,7 @@ print(pasta_pesto_dish.completion_state)
 # cooking!
 chef = ChefVisitor()
 pasta_pesto_dish.accept(chef)
+
+# shoping!
+shoping_list = ShoppingListVisitor()
+pasta_pesto_dish.accept(shoping_list)
