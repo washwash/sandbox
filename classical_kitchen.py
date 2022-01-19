@@ -112,9 +112,12 @@ class Ingredient(Subject, Observer):
     def update(self, subject: Subject):
         self.notify()
 
-    @property
-    def is_enough(self):
-        return self.shelf.left.value >= self.measurement.value
+    def calculate_missing_products(self) -> Measurment:
+        difference = self.shelf.left.value - self.measurement.value
+        return Measurment(
+            value=abs(difference) if 0 > difference else 0,
+            unit=self.measurement.unit
+        )
 
 
 class Recipe(Observer):
@@ -141,35 +144,66 @@ class Recipe(Observer):
     def reload_state(self):
         self.completion_state = []
         for i in self.ingredients:
+            missing_products = i.calculate_missing_products()
             self.completion_state.append(
                 {
-                    "status": 1 if i.is_enough else 0,
+                    "missing_value": missing_products.value,
+                    "required_value": i.measurement.value,
+                    "unit": missing_products.unit.value,
                     "product_id": i.product.id,
-                    "product_name": i.product.name
+                    "product_name": i.product.name,
                 }
             )
 
-    def accept(self, visitor: 'Visitor'):
-        visitor.visit(self)
+
+class ShoppingService:
+
+    def __init__(self, recipe: Recipe):
+        self.recipe = recipe
+        self.shoping_list: ShopingList = None
+
+    def create_shopping_list(self):
+        items = []
+        for i in self.recipe.ingredients:
+            missing_products = i.calculate_missing_products()
+            if not missing_products:
+                continue
+
+            item = ShoppingItem(
+                shelf=i.shelf,
+                required=Measurment(
+                    value=missing_products.value,
+                    unit=missing_products.unit
+                )
+            ) 
+            items.append(item)
+
+        self.shoping_list = ShoppingList(items=items)
+
+    def complete_shoping_list(self):
+        for item in self.shoping_list.items:
+            if item.purchased:
+                item.shelf.add(item.purchased)
 
 
-class Visitor:
+class ShoppingItem:
+    shelf: Shelf
+    product: Product
+    requred: Measurment
+    purchased: Measurment
 
-    def visit(self, element: 'Visitable'):
-        pass
+    def __init__(self, shelf: Shelf, required: Measurment):
+        self.shelf = shelf
+        self.product = shelf.product
+        self.required = required
+        self.purchased = Measurment(value=0, unit=required.unit)
 
 
-class ChefVisitor(Visitor):
+class ShoppingList:
+    items: ShoppingItem
 
-    def visit(self, recipe: Recipe):
-        recipe.completion_state
-        print("ready to cook!")
-
-class ShoppingListVisitor(Visitor):
-
-    def visit(self, recipe: Recipe):
-        recipe.completion_state
-        print("ready for shopping!")
+    def __init__(self, items: List[ShoppingItem]):
+        self.items = items
 
 
 ## Client code
@@ -220,13 +254,9 @@ spaghetti_shelf.remove(Measurment(unit=MeasurmentUnit.GRAM, value=Decimal(100)))
 penne_shelf.remove(Measurment(unit=MeasurmentUnit.GRAM, value=Decimal(800)))
 print(pasta_pesto_dish.completion_state)
 
-penne_shelf.add(Measurment(unit=MeasurmentUnit.GRAM, value=Decimal(800)))
-print(pasta_pesto_dish.completion_state)
-
-# cooking!
-chef = ChefVisitor()
-pasta_pesto_dish.accept(chef)
-
 # shoping!
-shoping_list = ShoppingListVisitor()
-pasta_pesto_dish.accept(shoping_list)
+shopping = ShoppingService(recipe=pasta_pesto_dish)
+shopping.create_shopping_list()
+shopping.shoping_list.items[1].purchased.value = Decimal(1000)
+shopping.complete_shoping_list()
+print(pasta_pesto_dish.completion_state)
